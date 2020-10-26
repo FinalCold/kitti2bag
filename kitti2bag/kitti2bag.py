@@ -109,12 +109,12 @@ def save_camera_data(bag, kitti_type, kitti, util, bridge, camera, camera_frame_
         image_dir = os.path.join(kitti.data_path, 'image_{}'.format(camera_pad))
         image_path = os.path.join(image_dir, 'data')
         image_filenames = sorted(os.listdir(image_path))
-        with open(os.path.join(image_dir, 'timestamps.txt')) as f:
+        with open(os.path.join('/home/mds/2011_09_26/2011_09_26_drive_0101_sync/velodyne_points', 'timestamps.txt')) as f:
             image_datetimes = map(lambda x: datetime.strptime(x[:-4], '%Y-%m-%d %H:%M:%S.%f'), f.readlines())
         
         calib = CameraInfo()
         calib.header.frame_id = camera_frame_id
-        calib.width, calib.height = tuple(util['S_rect_{}'.format(camera_pad)].tolist())
+        calib.height, calib.width = tuple(util['S_rect_{}'.format(camera_pad)].tolist())
         calib.distortion_model = 'plumb_bob'
         calib.K = util['K_{}'.format(camera_pad)]
         calib.R = util['R_rect_{}'.format(camera_pad)]
@@ -133,7 +133,7 @@ def save_camera_data(bag, kitti_type, kitti, util, bridge, camera, camera_frame_
     
     iterable = zip(image_datetimes, image_filenames)
     bar = progressbar.ProgressBar()
-    for dt, filename in bar(iterable):
+    for seqid, (dt, filename) in enumerate(bar(iterable)):
         image_filename = os.path.join(image_path, filename)
         cv_image = cv2.imread(image_filename)
         calib.height, calib.width = cv_image.shape[:2]
@@ -142,6 +142,7 @@ def save_camera_data(bag, kitti_type, kitti, util, bridge, camera, camera_frame_
         encoding = "mono8" if camera in (0, 1) else "bgr8"
         image_message = bridge.cv2_to_imgmsg(cv_image, encoding=encoding)
         image_message.header.frame_id = camera_frame_id
+        image_message.header.seq = seqid
         if kitti_type.find("raw") != -1:
             image_message.header.stamp = rospy.Time.from_sec(float(datetime.strftime(dt, "%s.%f")))
             topic_ext = "/image_raw"
@@ -168,7 +169,7 @@ def save_velo_data(bag, kitti, velo_frame_id, topic):
 
     iterable = zip(velo_datetimes, velo_filenames)
     bar = progressbar.ProgressBar()
-    for dt, filename in bar(iterable):
+    for seqid, (dt, filename) in enumerate(bar(iterable)):
         if dt is None:
             continue
 
@@ -179,6 +180,7 @@ def save_velo_data(bag, kitti, velo_frame_id, topic):
 
         # create header
         header = Header()
+        header.seq = seqid
         header.frame_id = velo_frame_id
         header.stamp = rospy.Time.from_sec(float(datetime.strftime(dt, "%s.%f")))
 
